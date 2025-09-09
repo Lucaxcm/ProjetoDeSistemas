@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="pt-br">
+
+<head>
+  <meta charset="utf-8" />
+  <title>Runner C++ • Web</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <script src="index.js" defer></script>
+  <link rel="stylesheet" href="index.css">
+
+</head>
+
+<body>
+  <h1>Executar processo C++</h1>
+  <select id="opt">
+    <option value="socket">Socket</option>
+    <option value="memoria">Memória Compartilhada</option>
+    <option value="pipes">Pipes Anônimas</option>
+    <option value="start">Teste</option>
+  </select>
+  <br>
+  <label>Mensagem a ser enviada: <input id="msg" placeholder="Olá Mundo!" /></label>
+  <div style="margin:12px 0;">
+    <button id="run">Executar</button>
+    <button id="stop" disabled>Parar</button>
+    <button id="logs" >Logs</button>
+  </div>
+  <p id="status">Status: Pronto</p>
+  <div class="responses">
+    <div class="wrapper">
+      <label for="log">Logs</label>
+      <div id="log" class="res">
+      </div>
+    </div>
+    <div class="wrapper">
+      <label for="etapas">Etapas</label>
+      <div id="etapas" class="res">
+      </div>
+    </div>
+  </div>
+
+</body>
+
+</html>
