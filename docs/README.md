@@ -6,9 +6,7 @@ Projeto universitário desenvolvido na PUCPR para a disciplina de Sistemas da Co
 -   cl servidor_pipe.cpp /EHsc
 -   cl cliente_pipe.cpp /EHsc
 2º  Abrir um Promt de Comando:
--   servidor_pipe.exe
-3º  Abrir um Promt de Comando:
--   cliente_pipe.exe
+-   servidor_pipe.exe | cliente_pipe.exe
 
 # Comandos para inicialização da Memoria Compartilhada
 1º  No Developer Command Prompt for VS 2022:
