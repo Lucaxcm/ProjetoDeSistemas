@@ -4,24 +4,20 @@
 #include <sstream>
 
 int main() {
-    // Lê do stdin (o que o servidor escreveu)
-    char buffer[256];
-    DWORD read;
-    std::string received;
-    while (ReadFile(GetStdHandle(STD_INPUT_HANDLE), buffer, sizeof(buffer) - 1, &read, NULL) && read > 0) {
-        buffer[read] = '\0';
-        received += buffer;
+    std::string line;
+
+    while (std::getline(std::cin, line)) {
+        std::ostringstream response;
+        response << "{"
+            << "\"connected\":true,"
+            << "\"ok\":true,"
+            << "\"received\":\"" << line << "\""
+            << "}\n"; // \n para facilitar leitura no servidor
+
+        std::cout << response.str();
+        std::cout.flush();
     }
-
-    // Monta resposta JSON para stdout
-    std::ostringstream response;
-    response << "{"
-        << "\"connected\":true,"
-        << "\"ok\":true,"
-        << "\"received\":\"" << received << "\""
-        << "}";
-
-    std::cout << response.str() << std::endl;
 
     return 0;
 }
+
