@@ -7,12 +7,14 @@ int main() {
     char buffer[256];
     DWORD read;
 
-    // Loop contínuo: lê mensagens do stdin e responde
+    // loop principal: le mensagens que chegam do stdin
+    // stdin aqui esta conectado ao pipe anonimo criado pelo backend
     while (ReadFile(GetStdHandle(STD_INPUT_HANDLE), buffer, sizeof(buffer) - 1, &read, NULL) && read > 0) {
+        // adiciona terminador de string
         buffer[read] = '\0';
         std::string received = buffer;
 
-        // Monta resposta JSON
+        // cria a resposta no formato JSON
         std::ostringstream response;
         response << "{"
             << "\"connected\":true,"
@@ -21,10 +23,12 @@ int main() {
             << "\"status\":\"mensagem recebida com sucesso\""
             << "}";
 
-        // Envia pelo stdout (para o backend -> frontend)
+        // envia a resposta JSON pelo stdout
+        // o backend ira ler essa saida e repassar ao frontend
         std::cout << response.str() << std::endl;
     }
 
     return 0;
 }
+
 
