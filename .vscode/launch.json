@@ -1,0 +1,29 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Run Server",
+      "type": "cppdbg",
+      "request": "launch",
+      "program": "${workspaceFolder}\\server.exe",
+      "args": [],
+      "cwd": "${workspaceFolder}",
+      "externalConsole": true,
+      "MIMode": "gdb",
+      "miDebuggerPath": "C:\\MinGW\\bin\\gdb.exe",
+      "preLaunchTask": "Build Server"
+    },
+    {
+      "name": "Run Client",
+      "type": "cppdbg",
+      "request": "launch",
+      "program": "${workspaceFolder}\\client.exe",
+      "args": [],
+      "cwd": "${workspaceFolder}",
+      "externalConsole": true,
+      "MIMode": "gdb",
+      "miDebuggerPath": "C:\\MinGW\\bin\\gdb.exe",
+      "preLaunchTask": "Build Client"
+    }
+  ]
+}

@@ -1,0 +1,31 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Build Server",
+      "type": "shell",
+      "command": "g++",
+      "args": [
+        "${workspaceFolder}\\server_min.cpp",
+        "-o", "${workspaceFolder}\\server.exe",
+        "-lws2_32"
+      ],
+      "options": { "cwd": "${workspaceFolder}" },
+      "group": { "kind": "build", "isDefault": true },
+      "problemMatcher": ["$gcc"]
+    },
+    {
+      "label": "Build Client",
+      "type": "shell",
+      "command": "g++",
+      "args": [
+        "${workspaceFolder}\\client_min.cpp",
+        "-o", "${workspaceFolder}\\client.exe",
+        "-lws2_32"
+      ],
+      "options": { "cwd": "${workspaceFolder}" },
+      "group": "build",
+      "problemMatcher": ["$gcc"]
+    }
+  ]
+}
