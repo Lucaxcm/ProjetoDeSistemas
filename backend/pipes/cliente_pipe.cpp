@@ -1,22 +1,14 @@
 #include <windows.h>
 #include <iostream>
 #include <string>
-#include <sstream>
 
 int main() {
-    std::string line;
+    std::string msg;
+    std::cout << "Digite uma mensagem: ";
+    std::getline(std::cin, msg);
 
-    while (std::getline(std::cin, line)) {
-        std::ostringstream response;
-        response << "{"
-            << "\"connected\":true,"
-            << "\"ok\":true,"
-            << "\"received\":\"" << line << "\""
-            << "}\n"; // \n para facilitar leitura no servidor
-
-        std::cout << response.str();
-        std::cout.flush();
-    }
+    // Envia para o servidor via stdout
+    std::cout << msg << std::endl;
 
     return 0;
 }
