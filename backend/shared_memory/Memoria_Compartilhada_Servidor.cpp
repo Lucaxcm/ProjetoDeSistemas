@@ -1,92 +1,69 @@
 #include <windows.h>
 #include <iostream>
 #include <string>
+#include <sstream>
+#include <iomanip>
+
+std::string bytesToHex(unsigned char* data, size_t length) {
+    std::ostringstream oss;
+    oss << "[";
+    for (size_t i = 0; i < length; i++) {
+        if (data[i] == 0) break;
+        oss << "\"0x" << std::hex << std::setw(2) << std::setfill('0') << (int)data[i] << "\"";
+        if (i < length - 1) oss << ",";
+    }
+    oss << "]";
+    return oss.str();
+}
 
 int main() {
     const char* sharedName = "MySharedMemory";
     const char* mutexName = "MySharedMemoryMutex";
 
-    // Mensagem simulada recebida
-    std::string received = "Dados recebidos com sucesso!";
-    std::string jsonResponse =
-        "{\"connected\":true,\"ok\":true,\"received\":\"" + received + "\"}";
+    HANDLE hMapFile = CreateFileMappingA(INVALID_HANDLE_VALUE, NULL, PAGE_READWRITE, 0, 512, sharedName);
+    if (!hMapFile) { std::cerr << "{\"error\":\"CreateFileMapping failed\"}"; return 1; }
 
-    // 1. Cria memória compartilhada
-    HANDLE hMapFile = CreateFileMappingA(
-        INVALID_HANDLE_VALUE,
-        NULL,
-        PAGE_READWRITE,
-        0,
-        512,
-        sharedName
-    );
-
-    if (hMapFile == NULL) {
-        std::cerr << "CreateFileMapping failed: " << GetLastError() << std::endl;
-        return 1;
-    }
-
-    // 2. Mapeia memória
-    LPVOID pBuf = MapViewOfFile(
-        hMapFile,
-        FILE_MAP_ALL_ACCESS,
-        0, 0, 512
-    );
-
-    if (pBuf == NULL) {
-        std::cerr << "MapViewOfFile failed: " << GetLastError() << std::endl;
-        CloseHandle(hMapFile);
-        return 1;
-    }
-
-    // 3. Cria mutex
     HANDLE hMutex = CreateMutexA(NULL, FALSE, mutexName);
-    if (hMutex == NULL) {
-        std::cerr << "CreateMutex failed: " << GetLastError() << std::endl;
-        UnmapViewOfFile(pBuf);
-        CloseHandle(hMapFile);
-        return 1;
+    if (!hMutex) { std::cerr << "{\"error\":\"CreateMutex failed\"}"; CloseHandle(hMapFile); return 1; }
+
+    LPVOID pBuf = MapViewOfFile(hMapFile, FILE_MAP_ALL_ACCESS, 0, 0, 512);
+    if (!pBuf) { std::cerr << "{\"error\":\"MapViewOfFile failed\"}"; CloseHandle(hMutex); CloseHandle(hMapFile); return 1; }
+
+    std::cout << "{\"status\":\"Servidor iniciado\"}" << std::endl;
+
+    while (true) {
+        // Verifica estado do mutex sem bloquear
+        std::string mutexState;
+        DWORD waitResult = WaitForSingleObject(hMutex, 0);
+        if (waitResult == WAIT_OBJECT_0) mutexState = "free";
+        else if (waitResult == WAIT_TIMEOUT) mutexState = "locked";
+        else mutexState = "error";
+
+        // Lê conteúdo da memória
+        std::string msg = (char*)pBuf;
+
+        if (!msg.empty()) {
+            // Cria JSON completo
+            std::ostringstream jsonOut;
+            unsigned char* raw = (unsigned char*)pBuf;
+            jsonOut << "{"
+                << "\"mutex\":\"" << mutexState << "\","
+                << "\"message\":\"" << msg << "\","
+                << "\"hexDump\":" << bytesToHex(raw, 64) << ","
+                << "\"status\":\"mensagem recebida com sucesso\""
+                << "}";
+
+            // Escreve na memória e envia para stdout
+            strcpy_s((char*)pBuf, 512, jsonOut.str().c_str());
+            std::cout << jsonOut.str() << std::endl;
+        }
+
+        ReleaseMutex(hMutex);
+        Sleep(1000);
     }
 
-    // 4. Checa estado do mutex (sem bloquear)
-    DWORD waitResult = WaitForSingleObject(hMutex, 0);
-    if (waitResult == WAIT_OBJECT_0) {
-        std::cout << "[Servidor] Mutex estava livre -> bloqueado pelo servidor." << std::endl;
-    }
-    else if (waitResult == WAIT_TIMEOUT) {
-        std::cout << "[Servidor] Mutex esta ocupado por outro processo." << std::endl;
-        // Para fins de teste, força bloqueio
-        WaitForSingleObject(hMutex, INFINITE);
-    }
-    else {
-        std::cout << "[Servidor] Erro ao verificar estado do mutex." << std::endl;
-    }
-
-    // 5. Escreve JSON na memória
-    CopyMemory((PVOID)pBuf, jsonResponse.c_str(), jsonResponse.size() + 1);
-
-    std::cout << "[Servidor] Escreveu JSON: " << jsonResponse << std::endl;
-
-    // Dump da memória em HEX
-    unsigned char* raw = (unsigned char*)pBuf;
-    std::cout << "[Servidor] Dump da memoria: ";
-    for (int i = 0; i < 64; i++) {
-        if (raw[i] == 0) break;
-        printf("%02X ", raw[i]);
-    }
-    std::cout << std::endl;
-
-    std::cout << "[Servidor] Aguardando cliente ler (pressione ENTER para sair)..." << std::endl;
-    std::cin.get();
-
-    // 6. Libera mutex
-    ReleaseMutex(hMutex);
-
-    // 7. Fecha recursos
-    CloseHandle(hMutex);
     UnmapViewOfFile(pBuf);
+    CloseHandle(hMutex);
     CloseHandle(hMapFile);
-
     return 0;
 }
-
