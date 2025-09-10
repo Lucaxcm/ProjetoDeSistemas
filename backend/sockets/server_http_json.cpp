@@ -208,7 +208,7 @@ int main(){
         return 1;
     }
 
-    std::cout << "HTTP JSON server em http://127.0.0.1:8080\n";
+    std::cout << "HTTP JSON server em http://127.0.0.1:8080" << std::endl;
 
     int conn_id = 0; // contador de conexões (apenas para LOG)
 
