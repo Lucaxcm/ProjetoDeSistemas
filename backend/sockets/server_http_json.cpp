@@ -1,11 +1,13 @@
 // Servidor HTTP mínimo (Windows/Winsock2) que devolve JSON
 // Rotas:
 //   GET  /health → {"connected":true}
-//   POST /echo   (body JSON: {"message":"..."})
-//                 → {"connected":true,"ok":true,"received":"..."}
-// Compilar (MinGW): g++ server_http_json.cpp -o server.exe -lws2_32
+//   POST /echo   (body JSON: {"message":"..."} → {"connected":true,"ok":true,"received":"..."})
+// Agora com LOGS de conexão, rota, corpo e "message" recebida.
+//
+// Compilar (MinGW): g++ server_http_json.cpp -o bin/server.exe -lws2_32
+// Compilar (MSVC):  cl /EHsc server_http_json.cpp ws2_32.lib
 
-#define _WINSOCK_DEPRECATED_NO_WARNINGS
+#define _WINSOCK_DEPRECATED_NO_WARNINGS  // permite inet_addr/inet_ntoa
 #include <winsock2.h>
 #include <ws2tcpip.h>
 #include <iostream>
@@ -13,15 +15,17 @@
 #include <string>
 #include <cstring>
 #include <cctype>
+#include <ctime>
 
-#pragma comment(lib, "Ws2_32.lib") // ignorado no MinGW, útil no MSVC
+#pragma comment(lib, "Ws2_32.lib")
 
+// --- util: to_lower (para achar Content-Length sem case sensitivity) ---
 static std::string to_lower(std::string s){
     for (size_t i=0;i<s.size();++i) s[i] = (char)std::tolower((unsigned char)s[i]);
     return s;
 }
 
-// Extrai Content-Length se existir; retorna -1 se não houver
+// --- util: extrai Content-Length do cabeçalho HTTP; -1 se não tiver ---
 static int parse_content_length(const std::string& headers){
     std::string h = to_lower(headers);
     const std::string key = "content-length:";
@@ -37,23 +41,19 @@ static int parse_content_length(const std::string& headers){
     return len;
 }
 
-// Extrai "message":"..." do JSON do body de forma simples (sem parser completo)
+// --- util: pega "message":"..." do JSON do body (parsing simples) ---
 static std::string extract_message(const std::string& body){
-    // procura por "message"
     size_t p = body.find("\"message\"");
     if (p == std::string::npos) return "";
     p = body.find(':', p);
     if (p == std::string::npos) return "";
-    // pula espaços
     ++p;
     while (p < body.size() && std::isspace((unsigned char)body[p])) ++p;
-    // aceita tanto "..." quanto '...'
     if (p >= body.size() || (body[p] != '"' && body[p] != '\'')) return "";
     char quote = body[p++];
     std::string out;
     while (p < body.size() && body[p] != quote){
         if (body[p] == '\\' && p+1 < body.size()){
-            // copia escape simples
             out.push_back(body[p+1]);
             p += 2;
         } else {
@@ -63,11 +63,10 @@ static std::string extract_message(const std::string& body){
     return out;
 }
 
-// Faz escape mínimo para embutir no JSON de resposta
+// --- util: escape mínimo para embutir string no JSON de resposta ---
 static std::string json_escape(const std::string& s){
     std::string out; out.reserve(s.size()+8);
-    for (size_t i=0;i<s.size();++i){
-        char c = s[i];
+    for (char c : s){
         if (c == '\\' || c == '"') { out.push_back('\\'); out.push_back(c); }
         else if (c == '\r') { /* ignora */ }
         else if (c == '\n') { out += "\\n"; }
@@ -76,8 +75,25 @@ static std::string json_escape(const std::string& s){
     return out;
 }
 
+// --- util: hora HH:MM:SS (portável para MinGW/MSVC) ---
+static const char* now_str(){
+    static char buf[32];
+    std::time_t t = std::time(nullptr);
+    std::tm* tm = std::localtime(&t);  // funciona no g++ e MSVC
+    if (!tm) { std::snprintf(buf, sizeof(buf), "??:??:??"); return buf; }
+    std::strftime(buf, sizeof(buf), "%H:%M:%S", tm);
+    return buf;
+}
+
+// --- util: converte IPv4 do cliente para string (compatível MinGW) ---
+static void ipv4_to_string(const sockaddr_in& cli, char* out, size_t outsz){
+    const char* s = inet_ntoa(cli.sin_addr);  // MinGW/MSVC suportam
+    if (!s) { std::snprintf(out, outsz, "?.?.?.?"); return; }
+    std::strncpy(out, s, outsz);
+    out[outsz-1] = '\0';
+}
+
 int main(){
-    // --- Winsock ---
     WSADATA wsa;
     if (WSAStartup(MAKEWORD(2,2), &wsa) != 0){
         std::cerr << "WSAStartup falhou. Cod: " << WSAGetLastError() << "\n";
@@ -94,10 +110,9 @@ int main(){
     BOOL opt = TRUE;
     setsockopt(listenSock, SOL_SOCKET, SO_REUSEADDR, (const char*)&opt, sizeof(opt));
 
-    sockaddr_in addr;
-    std::memset(&addr, 0, sizeof(addr));
+    sockaddr_in addr{};
     addr.sin_family = AF_INET;
-    addr.sin_addr.s_addr = inet_addr("127.0.0.1"); // só localhost; mude para htonl(INADDR_ANY) se quiser expor
+    addr.sin_addr.s_addr = inet_addr("127.0.0.1");
     addr.sin_port = htons(8080);
 
     if (bind(listenSock, (sockaddr*)&addr, sizeof(addr)) == SOCKET_ERROR){
@@ -106,7 +121,8 @@ int main(){
         WSACleanup();
         return 1;
     }
-    if (listen(listenSock, 1) == SOCKET_ERROR){
+
+    if (listen(listenSock, 16) == SOCKET_ERROR){
         std::cerr << "listen() falhou. Cod: " << WSAGetLastError() << "\n";
         closesocket(listenSock);
         WSACleanup();
@@ -115,20 +131,26 @@ int main(){
 
     std::cout << "HTTP JSON server em http://127.0.0.1:8080\n";
 
+    int conn_id = 0;
+
     while (true){
-        sockaddr_in cli; int cliLen = sizeof(cli);
+        sockaddr_in cli{}; int cliLen = sizeof(cli);
         SOCKET s = accept(listenSock, (sockaddr*)&cli, &cliLen);
         if (s == INVALID_SOCKET){
             std::cerr << "accept() falhou. Cod: " << WSAGetLastError() << "\n";
             break;
         }
 
-        // --- lê request (headers + body opcional) ---
+        ++conn_id;
+        char ipbuf[64];
+        ipv4_to_string(cli, ipbuf, sizeof(ipbuf));
+        std::cout << "[" << now_str() << "] #" << conn_id
+                  << " conectado de " << ipbuf << ":" << ntohs(cli.sin_port) << "\n";
+
         const int BUFSZ = 4096;
         char buf[BUFSZ];
         std::string req;
 
-        // lê até encontrar \r\n\r\n; depois, se tiver Content-Length, lê corpo
         int contentLen = -1;
         size_t headerEnd = std::string::npos;
 
@@ -144,14 +166,12 @@ int main(){
                     contentLen = parse_content_length(headers);
                 }
             }
-
             if (headerEnd != std::string::npos){
                 size_t haveBody = req.size() - (headerEnd+4);
                 if (contentLen <= 0 || haveBody >= (size_t)contentLen) break;
             }
         }
 
-        // --- roteamento simples ---
         std::string method, path;
         {
             size_t sp1 = req.find(' ');
@@ -169,17 +189,20 @@ int main(){
                 body = req.substr(start);
         }
 
+        std::cout << "  -> " << method << " " << path << "\n";
+        if (!body.empty()) std::cout << "  -> body: " << body << "\n";
+
         std::string respBody;
         int status = 200;
         std::string statusText = "OK";
 
-        // CORS preflight
         if (method == "OPTIONS"){
             respBody = "";
         } else if (method == "GET" && path == "/health"){
             respBody = "{\"connected\":true}";
         } else if (method == "POST" && path == "/echo"){
             std::string msg = extract_message(body);
+            std::cout << "  -> message extraída: \"" << msg << "\"\n";
             std::string esc = json_escape(msg);
             respBody = std::string("{\"connected\":true,\"ok\":true,\"received\":\"") + esc + "\"}";
         } else {
@@ -200,6 +223,8 @@ int main(){
         std::string resp = oss.str();
         send(s, resp.c_str(), (int)resp.size(), 0);
         closesocket(s);
+
+        std::cout << "  <- resposta enviada (" << respBody.size() << " bytes)\n";
     }
 
     closesocket(listenSock);
