@@ -1,44 +1,51 @@
 <!doctype html>
 <html lang="pt-br">
-
 <head>
   <meta charset="utf-8" />
   <title>Runner C++ • Web</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <script src="index.js" defer></script>
-  <link rel="stylesheet" href="index.css">
-
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <style>
+    body { font-family: sans-serif; max-width: 800px; margin: auto; padding: 1em; }
+    input, select, button { font-size: 1em; padding: 0.5em; margin: 0.2em; }
+    pre {
+      background-color: #f4f4f4;
+      border: 1px solid #ccc;
+      padding: 1em;
+      white-space: pre-wrap;
+      word-wrap: break-word;
+      max-height: 300px;
+      overflow-y: auto;
+    }
+    .container { display: flex; gap: 2em; }
+    .container > div { flex: 1; }
+  </style>
 </head>
-
 <body>
-  <h1>Executar processo C++</h1>
-  <select id="opt">
-    <option value="socket">Socket</option>
-    <option value="memoria">Memória Compartilhada</option>
-    <option value="pipes">Pipes Anônimas</option>
-    <option value="start">Teste</option>
+  <h1>Executor de Processos C++</h1>
+
+<label for="mechanism">Mecanismo:</label>
+  <select id="mechanism">
+    <option value="sockets">Sockets</option>
+    <option value="pipes">Pipes</option>
+    <option value="shared_memory">Memória Compartilhada</option>
   </select>
-  <br>
-  <label>Mensagem a ser enviada: <input id="msg" placeholder="Olá Mundo!" /></label>
-  <div style="margin:12px 0;">
-    <button id="run">Executar</button>
-    <button id="stop" disabled>Parar</button>
-    <button id="logs" >Logs</button>
-  </div>
-  <p id="status">Status: Pronto</p>
-  <div class="responses">
-    <div class="wrapper">
-      <label for="log">Logs</label>
-      <div id="log" class="res">
-      </div>
+
+  <label for="message">Mensagem:</label>
+  <input type="text" id="message" value="Olá, mundo!" placeholder="Digite a mensagem">
+
+  <button id="runBtn">Executar</button>
+
+  <div class="container">
+    <div>
+      <h3>Etapas da Comunicação</h3>
+      <pre id="etapas">Aguardando execução...</pre>
     </div>
-    <div class="wrapper">
-      <label for="etapas">Etapas</label>
-      <div id="etapas" class="res">
-      </div>
+    <div>
+      <h3>Logs Completos</h3>
+      <pre id="logs">Aguardando execução...</pre>
     </div>
   </div>
 
+  <script src="index.js"></script>
 </body>
-
 </html>
