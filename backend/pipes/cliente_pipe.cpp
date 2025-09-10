@@ -2,14 +2,20 @@
 #include <iostream>
 #include <string>
 
-int main() {
-    // le uma mensagem digitada pelo usuario no terminal
+int main(int argc, char* argv[]) {
     std::string msg;
-    std::cout << "Digite uma mensagem: ";
-    std::getline(std::cin, msg);
 
-    // envia a mensagem para o servidor escrevendo no stdout
-    // esse stdout sera redirecionado para o pipe pelo backend
+    if (argc > 1) {
+        // Se mensagem foi passada como argumento, usa ela
+        msg = argv[1];
+    }
+    else {
+        // Caso contrário, pede para digitar
+        std::cout << "Digite uma mensagem: ";
+        std::getline(std::cin, msg);
+    }
+
+    // Envia mensagem para o servidor via stdout
     std::cout << msg << std::endl;
 
     return 0;
