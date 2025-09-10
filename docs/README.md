@@ -19,3 +19,12 @@ Projeto universitário desenvolvido na PUCPR para a disciplina de Sistemas da Co
 
 3º  Abrir um Promt de Comando:
 -   Memoria_Compartilhada_Cliente.exe
+
+# Comandos para inicialização dos Sockets (HTTP JSON)
+1º  Ou no MinGW (g++) no VS Code/Prompt:
+-   g++ server_http_json.cpp -o bin/server.exe -lws2_32
+-   g++ client_http_post.cpp -o bin/client.exe -lws2_32
+
+2º  Executar em dois Prompts de Comando:
+-   Primeiro:  server.exe
+-   Depois:   client.exe "mensagem"
